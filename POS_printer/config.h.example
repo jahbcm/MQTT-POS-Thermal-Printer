@@ -1,0 +1,23 @@
+#ifndef CONFIG_H
+#define CONFIG_H
+
+// Wi-Fi credentials
+const char* ssid = "your_wifi_ssid";
+const char* password = "your_wifi_password";
+
+// MQTT server details
+const char* mqtt_server = "192.168.x.x";  // Your MQTT broker's IP address
+const int mqtt_port = 1883;               // Default MQTT port
+const char* mqtt_user = "your_mqtt_user"; // Your MQTT username
+const char* mqtt_pass = "your_mqtt_pass"; // Your MQTT password
+const char* mqtt_topic = "tasks/print";   // Topic to listen for print tasks
+#define MQTT_PACKET_SIZE 512
+
+// Uncomment to enable experimental icon printing support
+//#define ICON
+
+// Printer UART pins
+#define RXD2 21  // UART2 RX pin for printer communication
+#define TXD2 20  // UART2 TX pin for printer communication
+
+#endif // CONFIG_H
