@@ -7,7 +7,6 @@ HardwareSerial printerSerial(0);  // Use UART2 for printer communication
 WiFiClient espClient;
 PubSubClient client(espClient);
 
-// Singleton style to guarantee only one instance is used, RAII approach
 struct Style { 
   
   enum class AlignMode {
@@ -16,9 +15,27 @@ struct Style {
     Right = 2
   };
 
-  static Style& getInstance(int width = 1, int height = 1, AlignMode alignMode = AlignMode::Left) {
-    static Style instance(width, height, alignMode);
-    return instance;
+  Style(int width = 1, int height = 1, AlignMode alignMode = AlignMode::Left) {
+    // Save current state before applying new one
+    _prevWidth = _currentWidth;
+    _prevHeight = _currentHeight;
+    _prevAlign = _currentAlign;
+
+    _currentWidth = width;
+    _currentHeight = height;
+    _currentAlign = alignMode;
+
+    setFontSize(width, height);
+    align(alignMode);
+  }
+  ~Style() {
+    // Restore previous state
+    _currentWidth = _prevWidth;
+    _currentHeight = _prevHeight;
+    _currentAlign = _prevAlign;
+
+    setFontSize(_prevWidth, _prevHeight);
+    align(_prevAlign);
   }
 
   // no copy or move allowed
@@ -26,15 +43,16 @@ struct Style {
   Style& operator=(const Style&) = delete;
   Style(Style&&) = delete;
   Style& operator=(Style&&) = delete;
+
   private:
-  Style (int width, int height, AlignMode alignMode) {
-    setFontSize(width, height);
-    align(alignMode);
-  }
-  ~Style() {
-    setFontSize(1, 1); // Reset to normal size
-    align(AlignMode::Left); // Reset to left alignment
-  }
+  int _prevWidth;
+  int _prevHeight;
+  AlignMode _prevAlign;
+
+  // Shared state tracking across all Style instances
+  static int _currentWidth;
+  static int _currentHeight;
+  static AlignMode _currentAlign;
 
   // Function to set font size for text
   void setFontSize(int width, int height) {
@@ -49,8 +67,12 @@ struct Style {
     printerSerial.write(0x61);  // Alignment command
     printerSerial.write(static_cast<uint8_t>(mode));
   }
-  
 };
+
+// defaults
+int Style::_currentWidth = 1;
+int Style::_currentHeight = 1;
+Style::AlignMode Style::_currentAlign = Style::AlignMode::Left;
 
 struct SetBold {
   SetBold() {
@@ -155,7 +177,7 @@ void printBitmap(uint8_t* bitmap, int width, int height) {
 
 // Function to print the title (centered, bold, larger font)
 void printCenteredBoldTitle(String title) {
-  Style& style = Style::getInstance(2, 2, Style::AlignMode::Center); // Large font, centered
+  Style style(2, 2, Style::AlignMode::Center); // Large font, centered
   SetBold bold; // RAII style to enable bold for the scope of this block
   printerSerial.println(title);  // Print the title
   feedLines(2);  // Add a line feed after the title
@@ -163,7 +185,7 @@ void printCenteredBoldTitle(String title) {
 
 // Function to print the text (normal, centered)
 void printCenteredText(String text) {
-  Style& style = Style::getInstance(1, 1, Style::AlignMode::Center); // Normal font, centered
+  Style style(1, 1, Style::AlignMode::Center); // Normal font, centered
   printerSerial.println(text);  // Print the text
   feedLines(2);  // Add a few line feeds after the text
 }
@@ -230,6 +252,7 @@ void resetPrinter() {
 
 void setup() {
   Serial.begin(115200);
+  Serial.println("Starting");
   printerSerial.begin(9600, SERIAL_8N1, RXD2, TXD2);
   connectWiFi();
   connectMQTT();
